@@ -1,0 +1,42 @@
+{
+    "name": "kolossusai/chat-codeigniter",
+    "description": "Add a KolossusAI chat assistant to your CodeIgniter 4 site with one command.",
+    "type": "library",
+    "license": "BSD-3-Clause",
+    "keywords": ["codeigniter", "codeigniter4", "chatbot", "ai", "chat", "assistant", "kolossus"],
+    "homepage": "https://kolossus.ai",
+    "authors": [
+        {
+            "name": "Kolossus AI",
+            "homepage": "https://kolossus.ai"
+        }
+    ],
+    "require": {
+        "php": "^8.1"
+    },
+    "require-dev": {
+        "codeigniter4/framework": "^4.4",
+        "phpunit/phpunit": "^10.5|^11.0|^12.0"
+    },
+    "conflict": {
+        "codeigniter4/framework": "<4.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "KolossusAI\\ChatCodeIgniter\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "KolossusAI\\ChatCodeIgniter\\Tests\\": "tests/"
+        }
+    },
+    "scripts": {
+        "test": "phpunit"
+    },
+    "config": {
+        "sort-packages": true
+    },
+    "minimum-stability": "stable",
+    "prefer-stable": true
+}
