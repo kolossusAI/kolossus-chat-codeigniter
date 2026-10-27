@@ -20,7 +20,11 @@ if (! function_exists('kolossus_chat')) {
 }
 
 if (! function_exists('kolossus_chat_button')) {
-    function kolossus_chat_button(mixed $label = null, mixed $class = ''): string
+    /**
+     * @param mixed $label
+     * @param mixed $class
+     */
+    function kolossus_chat_button($label = null, $class = ''): string
     {
         return service('kolossusChat')->button($label, $class);
     }

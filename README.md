@@ -1,7 +1,9 @@
 # KolossusAI Chat for CodeIgniter
 
 Add your KolossusAI chat assistant to a CodeIgniter 4 site with one command. Works with
-CodeIgniter 4.4 and newer (PHP 8.1+; CodeIgniter 4.7 needs PHP 8.2).
+CodeIgniter 4.0 and newer (PHP 7.4+; CodeIgniter 4.4 needs PHP 8.1, 4.7 needs PHP 8.2).
+On CodeIgniter 4.0 and 4.1, which have no Content-Security-Policy nonces, the script tag
+goes out without one.
 
 ## Install
 

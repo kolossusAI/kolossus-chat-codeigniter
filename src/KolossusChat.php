@@ -4,8 +4,8 @@ namespace KolossusAI\ChatCodeIgniter;
 
 use CodeIgniter\HTTP\RequestInterface;
 use KolossusAI\ChatCodeIgniter\Config\KolossusChat as KolossusChatConfig;
+use SplObjectStorage;
 use Throwable;
-use WeakMap;
 
 /**
  * Builds the HTML that embeds the Kolossus chat widget (service('kolossusChat')).
@@ -21,16 +21,18 @@ class KolossusChat
 
     /**
      * Requests whose page already has the script tag: it goes out at most once per
-     * page, and InjectChatWidget leaves a page that used a helper alone. Weak, so a
-     * long-running worker forgets each request with it.
+     * page, and InjectChatWidget leaves a page that used a helper alone. A WeakMap on
+     * PHP 8, so a long-running worker forgets each request with it; PHP 7.4 (CodeIgniter
+     * 4.0–4.3 sites, which have no worker mode) has none, and SplObjectStorage does there.
+     * PHP 7.4 syntax throughout: no mixed type, promoted properties or str_contains().
      *
-     * @var WeakMap<RequestInterface, true>
+     * @var \WeakMap<RequestInterface, true>|SplObjectStorage<RequestInterface, true>
      */
-    private WeakMap $scriptDone;
+    private $scriptDone;
 
     public function __construct()
     {
-        $this->scriptDone = new WeakMap();
+        $this->scriptDone = class_exists('WeakMap') ? new \WeakMap() : new SplObjectStorage();
     }
 
     /** The validated settings; each distinct problem is logged once per process. */
@@ -65,7 +67,9 @@ class KolossusChat
             log_message('warning', "KolossusAI Chat: {$problem} The package's settings are used instead.");
         }
 
-        return config(KolossusChatConfig::class);
+        // Built directly: before CodeIgniter 4.4, config() with the full class name gives
+        // the same (app) instance as the short name.
+        return new KolossusChatConfig();
     }
 
     /** kolossus_chat(): the site-wide chat bubble (the widget script plus a hidden marker). */
@@ -81,8 +85,11 @@ class KolossusChat
     /**
      * kolossus_chat_button('Chat with us', 'btn'): a button that opens the chat. The
      * label is shown as escaped text; class names keep letters, digits, - and _ only.
+     *
+     * @param mixed $label
+     * @param mixed $class
      */
-    public function button(mixed $label = null, mixed $class = ''): string
+    public function button($label = null, $class = ''): string
     {
         return $this->safely(function (ChatConfig $cfg) use ($label, $class): string {
             $extra = array_filter(array_map(
@@ -90,7 +97,7 @@ class KolossusChat
                 preg_split('/\s+/', is_scalar($class) ? (string) $class : '') ?: []
             ));
             $label ??= 'Chat with us';
-            $text = is_scalar($label) || $label instanceof \Stringable ? (string) $label : '';
+            $text = self::isText($label) ? (string) $label : '';
 
             return $this->scriptOnce($this->currentRequest(), $cfg)
                 .'<button type="button" class="'.esc(implode(' ', ['kolossus-chat-button', ...$extra])).'" '
@@ -155,9 +162,18 @@ class KolossusChat
         if (! config('App')->CSPEnabled) {
             return null;
         }
-        $nonce = service('csp')->getScriptNonce();
+        // CodeIgniter 4.0 and 4.1 have no csp service and no script nonces.
+        try {
+            $csp = service('csp');
+        } catch (Throwable $e) {
+            return null;
+        }
+        if (! is_object($csp) || ! method_exists($csp, 'getScriptNonce')) {
+            return null;
+        }
+        $nonce = $csp->getScriptNonce();
 
-        return $nonce !== '' ? $nonce : null;
+        return is_string($nonce) && $nonce !== '' ? $nonce : null;
     }
 
     /**
@@ -206,7 +222,7 @@ class KolossusChat
                 return [];
             }
             $user = $auth->user();
-        } catch (Throwable) {
+        } catch (Throwable $e) {
             // Shield not set up (or another auth() helper): nobody to sign.
             return [];
         }
@@ -225,17 +241,32 @@ class KolossusChat
         ];
     }
 
-    /** A user field as trimmed text; '' for values that are not text (arrays, objects). */
-    private function text(mixed $value): string
+    /**
+     * A user field as trimmed text; '' for values that are not text (arrays, objects).
+     *
+     * @param mixed $value
+     */
+    private function text($value): string
     {
-        return is_scalar($value) || $value instanceof \Stringable ? trim((string) $value) : '';
+        return self::isText($value) ? trim((string) $value) : '';
+    }
+
+    /**
+     * A scalar, or an object with __toString (what PHP 8 calls \Stringable; PHP 7.4
+     * has no such interface, and instanceof it would be false there).
+     *
+     * @param mixed $value
+     */
+    private static function isText($value): bool
+    {
+        return is_scalar($value) || (is_object($value) && method_exists($value, '__toString'));
     }
 
     private function currentRequest(): ?RequestInterface
     {
         try {
             return service('request');
-        } catch (Throwable) {
+        } catch (Throwable $e) {
             return null;
         }
     }

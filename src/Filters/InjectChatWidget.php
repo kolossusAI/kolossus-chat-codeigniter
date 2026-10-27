@@ -79,9 +79,10 @@ class InjectChatWidget implements FilterInterface
         if (
             $response instanceof DownloadResponse
             || $response->getStatusCode() !== 200
-            || ! str_starts_with(strtolower($response->getHeaderLine('Content-Type')), 'text/html')
+            // strpos, not str_starts_with / str_contains: PHP 7.4 (CodeIgniter 4.0–4.3 sites).
+            || strpos(strtolower($response->getHeaderLine('Content-Type')), 'text/html') !== 0
             || $response->hasHeader('Content-Encoding')
-            || str_contains(strtolower($response->getHeaderLine('Content-Disposition')), 'attachment')
+            || strpos(strtolower($response->getHeaderLine('Content-Disposition')), 'attachment') !== false
             || ($request instanceof IncomingRequest && $request->isAJAX())
         ) {
             return;
@@ -107,7 +108,7 @@ class InjectChatWidget implements FilterInterface
 
         $body = $response->getBody();
         // Our own script URL only: a site may well have its own /static/widget/widget.js.
-        if (! is_string($body) || str_contains($body, 'data-kolossus=') || str_contains($body, $cfg->scriptUrl())) {
+        if (! is_string($body) || strpos($body, 'data-kolossus=') !== false || strpos($body, $cfg->scriptUrl()) !== false) {
             return;
         }
         // The last </body> of the page; tolerant of case and whitespace (</BODY >).
